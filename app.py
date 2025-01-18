@@ -2,7 +2,8 @@ import dash
 from dash import dcc, html, Input, Output, State
 import pandas as pd
 from datetime import datetime, timedelta
-import dash.daq as daq  # For icons
+
+
 
 # Sample Inventory Data (Hardcoded)
 inventory = pd.DataFrame({
