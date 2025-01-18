@@ -2,7 +2,7 @@ import dash
 from dash import dcc, html, Input, Output, State
 import pandas as pd
 from datetime import datetime, timedelta
-import dash_daq as daq  # For icons
+import dash.daq as daq  # For icons
 
 # Sample Inventory Data (Hardcoded)
 inventory = pd.DataFrame({
@@ -10,7 +10,7 @@ inventory = pd.DataFrame({
     "stock": [100, 150, 60, 40],
     "consumption_rate": [0.5, 0.7, 0.6, 0.2],
     "threshold": [20, 30, 10, 10],
-    "last_replenished": [None, None, None, None]
+    "last_replenished": [datetime.now()] * 4  # Replace None with current date
 })
 
 # Function to forecast ration required for N days
@@ -46,65 +46,52 @@ def forecast_depletion():
     return pd.DataFrame(depletion_forecast)
 
 # Dash App Layout and Callbacks
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
+app = dash.Dash(__name__)
+server = app.server  # Expose Flask server for Gunicorn compatibility
 app.title = "Inventory Management Dashboard"
 
-app.layout = html.Div([ 
+app.layout = html.Div([
     html.Div([
         html.H1("Inventory Management Dashboard", style={
             'textAlign': 'center', 'fontSize': '2.5em', 'color': '#ffffff', 'marginBottom': '20px',
             'fontFamily': 'Roboto, sans-serif', 'fontWeight': '700'}),
-        dcc.Tabs([ 
-            dcc.Tab(label="Forecast Ration", children=[ 
+        dcc.Tabs([
+            dcc.Tab(label="Forecast Ration", children=[
                 html.Div([
-                    html.Div("Instructions: This section allows you to forecast the amount of ration needed for N days and N people. Enter the values to view the required stock for each item.", style={
-                        'fontSize': '1em', 'color': '#ffffff', 'marginBottom': '20px', 'fontFamily': 'Roboto, sans-serif'}),
-                    html.Label("Number of Days:", style={'fontSize': '1em', 'color': '#ffffff', 'marginRight': '10px'}),
-                    dcc.Input(id="forecast_days", type="number", min=1, value=7, style={
-                        'width': '200px', 'padding': '10px', 'margin': '10px 0', 'border': '1px solid #ccc', 'borderRadius': '4px'}),
-                    html.Label("Number of People:", style={'fontSize': '1em', 'color': '#ffffff', 'marginRight': '10px'}),
-                    dcc.Input(id="forecast_people", type="number", min=1, value=10, style={
-                        'width': '200px', 'padding': '10px', 'margin': '10px 0', 'border': '1px solid #ccc', 'borderRadius': '4px'}),
-                    html.Button("Forecast", id="forecast_button", n_clicks=0, style={
-                        'backgroundColor': '#4CAF50', 'color': 'white', 'border': 'none', 'padding': '12px 20px', 
-                        'marginTop': '10px', 'borderRadius': '4px', 'cursor': 'pointer'}),
+                    html.P("Instructions: Enter values to forecast the stock required.", style={
+                        'fontSize': '1em', 'color': '#ffffff', 'marginBottom': '20px'}),
+                    html.Label("Number of Days:", style={'color': '#ffffff'}),
+                    dcc.Input(id="forecast_days", type="number", min=1, value=7),
+                    html.Label("Number of People:", style={'color': '#ffffff'}),
+                    dcc.Input(id="forecast_people", type="number", min=1, value=10),
+                    html.Button("Forecast", id="forecast_button", n_clicks=0),
                     html.Div(id="forecast_output", style={'marginTop': '20px'})
-                ], style={'padding': '20px', 'backgroundColor': '#2c2c2c'})
+                ], style={'padding': '20px'})
             ]),
-            dcc.Tab(label="Simulate Consumption", children=[ 
+            dcc.Tab(label="Simulate Consumption", children=[
                 html.Div([
-                    html.Div("Instructions: Simulate how the stock is consumed over multiple days for a specified number of people.", style={
-                        'fontSize': '1em', 'color': '#ffffff', 'marginBottom': '20px', 'fontFamily': 'Roboto, sans-serif'}),
-                    html.Label("Number of People:", style={'fontSize': '1em', 'color': '#ffffff', 'marginRight': '10px'}),
-                    dcc.Input(id="simulate_people", type="number", min=1, value=10, style={
-                        'width': '200px', 'padding': '10px', 'margin': '10px 0', 'border': '1px solid #ccc', 'borderRadius': '4px'}),
-                    html.Label("Number of Days:", style={'fontSize': '1em', 'color': '#ffffff', 'marginRight': '10px'}),
-                    dcc.Input(id="simulate_days", type="number", min=1, value=7, style={
-                        'width': '200px', 'padding': '10px', 'margin': '10px 0', 'border': '1px solid #ccc', 'borderRadius': '4px'}),
-                    html.Button("Simulate", id="simulate_button", n_clicks=0, style={
-                        'backgroundColor': '#4CAF50', 'color': 'white', 'border': 'none', 'padding': '12px 20px', 
-                        'marginTop': '10px', 'borderRadius': '4px', 'cursor': 'pointer'}),
+                    html.P("Simulate stock consumption over time.", style={
+                        'fontSize': '1em', 'color': '#ffffff'}),
+                    html.Label("Number of People:", style={'color': '#ffffff'}),
+                    dcc.Input(id="simulate_people", type="number", min=1, value=10),
+                    html.Label("Number of Days:", style={'color': '#ffffff'}),
+                    dcc.Input(id="simulate_days", type="number", min=1, value=7),
+                    html.Button("Simulate", id="simulate_button", n_clicks=0),
                     html.Div(id="simulate_output", style={'marginTop': '20px'})
-                ], style={'padding': '20px', 'backgroundColor': '#2c2c2c'})
+                ])
             ]),
-            dcc.Tab(label="Forecast Depletion", children=[ 
+            dcc.Tab(label="Forecast Depletion", children=[
                 html.Div([
-                    html.Div("Instructions: This section uses historical consumption rates to predict when your stock will be depleted.", style={
-                        'fontSize': '1em', 'color': '#ffffff', 'marginBottom': '20px', 'fontFamily': 'Roboto, sans-serif'}),
-                    html.Button("Forecast Depletion", id="depletion_button", n_clicks=0, style={
-                        'backgroundColor': '#4CAF50', 'color': 'white', 'border': 'none', 'padding': '12px 20px', 
-                        'marginTop': '10px', 'borderRadius': '4px', 'cursor': 'pointer'}),
+                    html.P("Forecast when your stock will be depleted.", style={
+                        'fontSize': '1em', 'color': '#ffffff'}),
+                    html.Button("Forecast Depletion", id="depletion_button", n_clicks=0),
                     html.Div(id="depletion_output", style={'marginTop': '20px'})
-                ], style={'padding': '20px', 'backgroundColor': '#2c2c2c'})
+                ])
             ])
         ])
-    ], style={
-        'maxWidth': '1200px', 'margin': '20px auto', 'padding': '20px', 
-        'backgroundColor': '#333333', 'boxShadow': '0px 4px 6px rgba(0, 0, 0, 0.1)', 'borderRadius': '8px'
-    })
+    ], style={'padding': '20px', 'backgroundColor': '#333333'})
 ])
 
-# Callbacks
 @app.callback(
     Output("forecast_output", "children"),
     Input("forecast_button", "n_clicks"),
@@ -112,14 +99,13 @@ app.layout = html.Div([
     State("forecast_people", "value")
 )
 def update_forecast(n_clicks, n_days, n_people):
-    if n_clicks > 0:
+    if n_clicks > 0 and n_days and n_people:
         forecast = forecast_ration(n_days, n_people)
         return html.Div([
-            html.H4("Forecast Results:", style={'fontSize': '1.2em', 'color': '#4CAF50', 'marginBottom': '10px'}),
+            html.H4("Forecast Results:", style={'color': '#4CAF50'}),
             dash.dash_table.DataTable(
                 data=forecast.to_dict("records"),
-                columns=[{"name": i, "id": i} for i in forecast.columns],
-                style_table={"overflowX": "auto", 'backgroundColor': '#f4f4f4', 'color': '#333'}
+                columns=[{"name": i, "id": i} for i in forecast.columns]
             )
         ])
 
@@ -130,14 +116,13 @@ def update_forecast(n_clicks, n_days, n_people):
     State("simulate_days", "value")
 )
 def update_simulation(n_clicks, n_people, n_days):
-    if n_clicks > 0:
+    if n_clicks > 0 and n_people and n_days:
         simulation = simulate_consumption(n_people, n_days)
         return html.Div([
-            html.H4("Simulation Results:", style={'fontSize': '1.2em', 'color': '#4CAF50', 'marginBottom': '10px'}),
+            html.H4("Simulation Results:", style={'color': '#4CAF50'}),
             dash.dash_table.DataTable(
                 data=simulation.to_dict("records"),
-                columns=[{"name": i, "id": i} for i in simulation.columns],
-                style_table={"overflowX": "auto", 'backgroundColor': '#f4f4f4', 'color': '#333'}
+                columns=[{"name": i, "id": i} for i in simulation.columns]
             )
         ])
 
@@ -149,13 +134,12 @@ def update_depletion(n_clicks):
     if n_clicks > 0:
         depletion = forecast_depletion()
         return html.Div([
-            html.H4("Depletion Forecast:", style={'fontSize': '1.2em', 'color': '#4CAF50', 'marginBottom': '10px'}),
+            html.H4("Depletion Forecast:", style={'color': '#4CAF50'}),
             dash.dash_table.DataTable(
                 data=depletion.to_dict("records"),
-                columns=[{"name": i, "id": i} for i in depletion.columns],
-                style_table={"overflowX": "auto", 'backgroundColor': '#f4f4f4', 'color': '#333'}
+                columns=[{"name": i, "id": i} for i in depletion.columns]
             )
         ])
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
